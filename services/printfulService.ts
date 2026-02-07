@@ -6,8 +6,8 @@ const PRINTFUL_API = '/api/printful';
 const PRODUCT_VARIANTS: Record<ProductType, { variantId: number; productId: number; placement: string }> = {
   [ProductType.TSHIRT]: { variantId: 4012, productId: 71, placement: 'front' },
   [ProductType.MUG]: { variantId: 1320, productId: 19, placement: 'default' },
-  [ProductType.CANVAS]: { variantId: 4552, productId: 3, placement: 'default' },
-  [ProductType.TOTE]: { variantId: 6089, productId: 147, placement: 'front' },
+  [ProductType.CANVAS]: { variantId: 5, productId: 3, placement: 'default' },
+  [ProductType.TOTE]: { variantId: 10457, productId: 367, placement: 'front' },
 };
 
 const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
