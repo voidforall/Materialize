@@ -1,9 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CreateStep } from './components/CreateStep';
 import { RenderStep } from './components/RenderStep';
 import { ShipStep } from './components/ShipStep';
 import { AppStep, GeneratedImage, RenderedProduct } from './types';
 import { Palette, Box, ShoppingCart, ChevronRight } from 'lucide-react';
+
+const LS_KEYS = {
+  GENERATED_IMAGES: 'artrealize_generated_images',
+  RENDERED_PRODUCTS: 'artrealize_rendered_products',
+  SELECTED_IMAGE_ID: 'artrealize_selected_image_id',
+  SELECTED_PRODUCT_ID: 'artrealize_selected_product_id',
+};
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Quota exceeded — silently ignore
+  }
+}
 
 const STEPS = [
   { id: AppStep.CREATE, label: 'Create', icon: Palette, description: 'Generate AI Artwork' },
@@ -13,10 +38,28 @@ const STEPS = [
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.CREATE);
-  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<RenderedProduct | null>(null);
-  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  const [renderedProducts, setRenderedProducts] = useState<RenderedProduct[]>([]);
+  const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>(
+    () => loadFromStorage<GeneratedImage[]>(LS_KEYS.GENERATED_IMAGES, [])
+  );
+  const [renderedProducts, setRenderedProducts] = useState<RenderedProduct[]>(
+    () => loadFromStorage<RenderedProduct[]>(LS_KEYS.RENDERED_PRODUCTS, [])
+  );
+  const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(() => {
+    const images = loadFromStorage<GeneratedImage[]>(LS_KEYS.GENERATED_IMAGES, []);
+    const savedId = loadFromStorage<string | null>(LS_KEYS.SELECTED_IMAGE_ID, null);
+    return images.find(img => img.id === savedId) ?? null;
+  });
+  const [selectedProduct, setSelectedProduct] = useState<RenderedProduct | null>(() => {
+    const products = loadFromStorage<RenderedProduct[]>(LS_KEYS.RENDERED_PRODUCTS, []);
+    const savedId = loadFromStorage<string | null>(LS_KEYS.SELECTED_PRODUCT_ID, null);
+    return products.find(p => p.id === savedId) ?? null;
+  });
+
+  // Persist state to localStorage
+  useEffect(() => { saveToStorage(LS_KEYS.GENERATED_IMAGES, generatedImages); }, [generatedImages]);
+  useEffect(() => { saveToStorage(LS_KEYS.RENDERED_PRODUCTS, renderedProducts); }, [renderedProducts]);
+  useEffect(() => { saveToStorage(LS_KEYS.SELECTED_IMAGE_ID, selectedImage?.id ?? null); }, [selectedImage]);
+  useEffect(() => { saveToStorage(LS_KEYS.SELECTED_PRODUCT_ID, selectedProduct?.id ?? null); }, [selectedProduct]);
 
   const handleImageSelect = (image: GeneratedImage) => {
     setSelectedImage(image);

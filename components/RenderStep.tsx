@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GeneratedImage, ProductType, RenderedProduct } from '../types';
 import { renderProductPreview } from '../services/geminiService';
-import { Loader2, Shirt, Coffee, Box, Image as ImageIcon, Download, Check, Sparkles } from 'lucide-react';
+import { hostImage } from '../services/printfulService';
+import { Loader2, Shirt, Coffee, Box, Image as ImageIcon, Download, Check, Sparkles, Share2 } from 'lucide-react';
 
 interface RenderStepProps {
   selectedImage: GeneratedImage | null;
@@ -51,6 +52,8 @@ export const RenderStep: React.FC<RenderStepProps> = ({
   const [activeProductType, setActiveProductType] = useState<ProductType>(ProductType.TSHIRT);
   const [isRendering, setIsRendering] = useState(false);
   const [contextPrompt, setContextPrompt] = useState(PRESETS[ProductType.TSHIRT][0].prompt);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const handleProductChange = (type: ProductType) => {
     setActiveProductType(type);
@@ -93,6 +96,44 @@ export const RenderStep: React.FC<RenderStepProps> = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2000);
+  };
+
+  const handleShare = async () => {
+    if (!selectedProduct) return;
+    setIsSharing(true);
+    try {
+      // Convert base64 data URL to a Blob/File
+      const res = await fetch(selectedProduct.previewUrl);
+      const blob = await res.blob();
+      const fileName = `artrealize-${selectedProduct.productType.toLowerCase().replace(/\s+/g, '-')}.png`;
+      const file = new File([blob], fileName, { type: blob.type });
+
+      // Try Web Share API (mobile + some desktop browsers)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: `ArtRealize – ${selectedProduct.productType} Preview`,
+          files: [file],
+        });
+      } else {
+        // Fallback: upload and copy link
+        const publicUrl = await hostImage(selectedProduct.previewUrl);
+        await navigator.clipboard.writeText(publicUrl);
+        showToast('Link copied!');
+      }
+    } catch (error: any) {
+      // User cancelled share sheet — not an error
+      if (error?.name !== 'AbortError') {
+        console.error('Share failed:', error);
+        showToast('Failed to share');
+      }
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   if (!selectedImage) {
@@ -190,16 +231,29 @@ export const RenderStep: React.FC<RenderStepProps> = ({
                   <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-white text-xs font-medium border border-white/10">
                      {selectedProduct.productType} Preview
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload();
-                    }}
-                    className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-all border border-white/10 shadow-lg"
-                    title="Download Render"
-                  >
-                    <Download className="w-5 h-5" />
-                  </button>
+                  <div className="absolute top-4 right-4 flex gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShare();
+                      }}
+                      disabled={isSharing}
+                      className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-all border border-white/10 shadow-lg disabled:opacity-50"
+                      title="Share"
+                    >
+                      {isSharing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Share2 className="w-5 h-5" />}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload();
+                      }}
+                      className="p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-all border border-white/10 shadow-lg"
+                      title="Download Render"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
+                  </div>
                </>
              ) : (
                <div className="text-center p-8">
@@ -257,6 +311,13 @@ export const RenderStep: React.FC<RenderStepProps> = ({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg shadow-lg animate-fade-in">
+          {toastMessage}
         </div>
       )}
     </div>
