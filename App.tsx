@@ -6,10 +6,10 @@ import { AppStep, GeneratedImage, RenderedProduct } from './types';
 import { Palette, Box, ShoppingCart, ChevronRight } from 'lucide-react';
 
 const LS_KEYS = {
-  GENERATED_IMAGES: 'artrealize_generated_images',
-  RENDERED_PRODUCTS: 'artrealize_rendered_products',
-  SELECTED_IMAGE_ID: 'artrealize_selected_image_id',
-  SELECTED_PRODUCT_ID: 'artrealize_selected_product_id',
+  GENERATED_IMAGES: 'materialize_generated_images',
+  RENDERED_PRODUCTS: 'materialize_rendered_products',
+  SELECTED_IMAGE_ID: 'materialize_selected_image_id',
+  SELECTED_PRODUCT_ID: 'materialize_selected_product_id',
 };
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -121,9 +121,9 @@ export default function App() {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-              A
+              M
             </div>
-            <span className="font-bold text-xl tracking-tight">ArtRealize</span>
+            <span className="font-bold text-xl tracking-tight">Materialize</span>
           </div>
           <div className="text-sm text-slate-500 hidden md:block">
             AI to Reality Pipeline

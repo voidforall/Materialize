@@ -92,7 +92,7 @@ export const RenderStep: React.FC<RenderStepProps> = ({
     if (!selectedProduct) return;
     const link = document.createElement('a');
     link.href = selectedProduct.previewUrl;
-    link.download = `art-realize-${selectedProduct.productType.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`;
+    link.download = `materialize-${selectedProduct.productType.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -110,13 +110,13 @@ export const RenderStep: React.FC<RenderStepProps> = ({
       // Convert base64 data URL to a Blob/File
       const res = await fetch(selectedProduct.previewUrl);
       const blob = await res.blob();
-      const fileName = `artrealize-${selectedProduct.productType.toLowerCase().replace(/\s+/g, '-')}.png`;
+      const fileName = `materialize-${selectedProduct.productType.toLowerCase().replace(/\s+/g, '-')}.png`;
       const file = new File([blob], fileName, { type: blob.type });
 
       // Try Web Share API (mobile + some desktop browsers)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
-          title: `ArtRealize – ${selectedProduct.productType} Preview`,
+          title: `Materialize – ${selectedProduct.productType} Preview`,
           files: [file],
         });
       } else {
