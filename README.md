@@ -10,11 +10,18 @@ View your app in AI Studio: https://ai.studio/apps/drive/1oahDjKTR8Ru8xoytILX77-
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Configure API keys in [.env.local](.env.local):
+   ```
+   GEMINI_API_KEY=your_gemini_api_key
+   PRINTFUL_API_KEY=your_printful_api_key
+   ```
+   - **GEMINI_API_KEY** — Required. Get one from [Google AI Studio](https://aistudio.google.com/apikey).
+   - **PRINTFUL_API_KEY** — Required for the Ship step. Get one from [Printful API Settings](https://www.printful.com/dashboard/developer/api). Without it, the Ship step runs in simulation mode.
 3. Run the app:
    `npm run dev`
+
+The Vite dev server proxies Printful API requests (`/api/printful`) so the API key stays server-side and CORS is not an issue.
