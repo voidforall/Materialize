@@ -3,7 +3,7 @@ import { CreateStep } from './components/CreateStep';
 import { RenderStep } from './components/RenderStep';
 import { ShipStep } from './components/ShipStep';
 import { AppStep, GeneratedImage, RenderedProduct } from './types';
-import { Palette, Box, ShoppingCart, ChevronRight } from 'lucide-react';
+import { Palette, Box, ShoppingCart, ChevronRight, ArrowRight, Sparkles } from 'lucide-react';
 
 const LS_KEYS = {
   GENERATED_IMAGES: 'materialize_generated_images',
@@ -37,6 +37,7 @@ const STEPS = [
 ];
 
 export default function App() {
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const [currentStep, setCurrentStep] = useState<AppStep>(AppStep.CREATE);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>(
     () => loadFromStorage<GeneratedImage[]>(LS_KEYS.GENERATED_IMAGES, [])
@@ -113,6 +114,93 @@ export default function App() {
         return null;
     }
   };
+
+  if (showOnboarding) {
+    return (
+      <div className="min-h-screen relative overflow-hidden bg-slate-950 flex flex-col items-center justify-center px-6">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(147,51,234,0.3)_0%,_transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(99,102,241,0.25)_0%,_transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(168,85,247,0.1)_0%,_transparent_70%)]" />
+        </div>
+
+        {/* Floating particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-purple-400/40 rounded-full"
+              style={{
+                left: `${15 + i * 15}%`,
+                top: `${20 + (i % 3) * 25}%`,
+                animation: `float ${3 + i * 0.7}s ease-in-out infinite alternate`,
+                animationDelay: `${i * 0.4}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 text-center max-w-lg" style={{ animation: 'fadeUp 0.8s ease-out' }}>
+          {/* Logo */}
+          <div className="mb-8 inline-flex items-center justify-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl shadow-2xl shadow-purple-500/30 rotate-3">
+              M
+            </div>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-4">
+            Materialize
+          </h1>
+
+          {/* Tagline */}
+          <p className="text-xl md:text-2xl text-purple-200/80 font-light tracking-wide mb-12">
+            Imagine it. Own it.
+          </p>
+
+          {/* CTA */}
+          <button
+            onClick={() => setShowOnboarding(false)}
+            className="group inline-flex items-center gap-3 px-8 py-4 bg-white text-slate-900 rounded-full font-semibold text-lg shadow-2xl shadow-white/10 hover:shadow-white/20 hover:scale-105 transition-all duration-300"
+          >
+            Get Started
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </button>
+
+          {/* Powered by */}
+          <p className="mt-10 text-xs text-slate-500">
+            Powered by <span className="text-slate-400 font-medium">Gemini</span> & <span className="text-slate-400 font-medium">Nano Banana</span>
+          </p>
+
+          {/* Sub-description */}
+          <div className="mt-8 flex items-center justify-center gap-6 text-sm text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+              AI-Generated Art
+            </span>
+            <span className="w-1 h-1 bg-slate-600 rounded-full" />
+            <span>Real Products</span>
+            <span className="w-1 h-1 bg-slate-600 rounded-full" />
+            <span>Delivered to You</span>
+          </div>
+        </div>
+
+        {/* Keyframe styles */}
+        <style>{`
+          @keyframes float {
+            from { transform: translateY(0px) scale(1); opacity: 0.4; }
+            to { transform: translateY(-20px) scale(1.5); opacity: 0.8; }
+          }
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-20">
