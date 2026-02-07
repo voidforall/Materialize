@@ -16,19 +16,19 @@ Materialize walks you through three steps to go from idea to product:
 
 Describe what you want and the AI generates original artwork for you. Browse your gallery, pick your favorite, and move on.
 
-<!-- TODO: screenshot of Create step -->
+![Create Step](imgs/create.png)
 
 ### 2. Render — Visualize on a Product
 
 Choose a product type (t-shirt, mug, canvas, or tote bag), pick a scene preset or write your own, and the AI renders a realistic product preview.
 
-<!-- TODO: screenshot of Render step -->
+![Render Step](imgs/render.png)
 
 ### 3. Ship — Order & Delivery
 
 Enter your shipping details and place an order. Materialize handles fulfillment through Printful.
 
-<!-- TODO: screenshot of Ship step -->
+![Ship Step](imgs/ship.png)
 
 ## Run Locally
 
