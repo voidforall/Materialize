@@ -30,6 +30,15 @@ export interface RenderedProduct {
 export type ImageResolution = '1K' | '2K' | '4K';
 
 // Printful Types
+export interface PrintfulShippingRate {
+  id: string;
+  name: string;
+  rate: string;
+  currency: string;
+  minDeliveryDays: number;
+  maxDeliveryDays: number;
+}
+
 export interface PrintfulMockup {
   placement: string;
   variant_id: number;

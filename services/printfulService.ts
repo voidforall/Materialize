@@ -1,148 +1,137 @@
-import { ProductType } from "../types";
+import { ProductType, PrintfulShippingRate } from "../types";
 
-const API_URL = 'https://api.printful.com';
-// Using the provided Access Token. In production, use environment variables.
-const API_KEY = process.env.PRINTFUL_API_KEY || 'g9e1XcXDDgLrNziLghmt4fwCbArzc3XFdCfacPSb';
+const PRINTFUL_API = '/api/printful';
 
-// Mapping internal product types to Printful Variant IDs (Generic placeholders)
+// Mapping internal product types to Printful Variant IDs
 const PRODUCT_VARIANTS: Record<ProductType, { variantId: number; productId: number; placement: string }> = {
-  [ProductType.TSHIRT]: { variantId: 4012, productId: 71, placement: 'front' }, // Bella + Canvas 3001, Black, L
-  [ProductType.MUG]: { variantId: 1320, productId: 19, placement: 'default' }, // White Glossy Mug 11oz
-  [ProductType.CANVAS]: { variantId: 4552, productId: 3, placement: 'default' }, // Canvas 12x12
-  [ProductType.TOTE]: { variantId: 6089, productId: 147, placement: 'front' }, // Econscious Tote
+  [ProductType.TSHIRT]: { variantId: 4012, productId: 71, placement: 'front' },
+  [ProductType.MUG]: { variantId: 1320, productId: 19, placement: 'default' },
+  [ProductType.CANVAS]: { variantId: 4552, productId: 3, placement: 'default' },
+  [ProductType.TOTE]: { variantId: 6089, productId: 147, placement: 'front' },
 };
 
-const getHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${API_KEY}`
-});
-
-export const isPrintfulConfigured = () => !!API_KEY;
+const jsonHeaders = () => ({ 'Content-Type': 'application/json' });
 
 /**
- * Verifies if the Printful API connection works
+ * Verifies if the Printful API connection works via the Vite proxy.
  */
 export const checkPrintfulConnection = async (): Promise<boolean> => {
-  if (!API_KEY) return false;
   try {
-    const response = await fetch(`${API_URL}/store`, { 
+    const response = await fetch(`${PRINTFUL_API}/products`, {
       method: 'GET',
-      headers: getHeaders() 
+      headers: jsonHeaders(),
     });
     return response.ok;
   } catch (e) {
-    console.warn("Printful connection check failed (possibly CORS or invalid key):", e);
+    console.warn("Printful connection check failed:", e);
     return false;
   }
 };
 
 /**
- * Uploads a base64 image to Printful
+ * Uploads a base64 image to a public host via the Vite server middleware,
+ * returning a public URL that Printful can fetch.
  */
-export const uploadPrintfulFile = async (base64Image: string): Promise<number> => {
-  if (!API_KEY) throw new Error("Printful API Key missing");
-
-  const response = await fetch(`${API_URL}/files`, {
+export const hostImage = async (base64Image: string): Promise<string> => {
+  const response = await fetch('/api/host-image', {
     method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      role: 'printfile',
-      filename: `art_realize_${Date.now()}.png`,
-      url: base64Image // Printful accepts base64 data URIs directly
-    })
+    headers: jsonHeaders(),
+    body: JSON.stringify({ base64: base64Image }),
   });
 
   if (!response.ok) {
     const err = await response.json();
-    throw new Error(err.result || 'Failed to upload file to Printful');
+    throw new Error(err.error || 'Failed to host image');
   }
 
   const data = await response.json();
-  return data.result.id;
+  return data.url;
 };
 
 /**
- * Generates mockups using Printful's Generator API
+ * Generates mockups using Printful's Mockup Generator API with async polling.
+ * Returns an array of mockup image URLs.
  */
 export const generatePrintfulMockups = async (
-  fileId: number, 
+  imageUrl: string,
   productType: ProductType
 ): Promise<string[]> => {
-  if (!API_KEY) throw new Error("Printful API Key missing");
-
   const config = PRODUCT_VARIANTS[productType];
-  
-  // 1. Create Task
-  const taskRes = await fetch(`${API_URL}/mockup-generator/create-task/${config.productId}`, {
+
+  // 1. Create mockup generation task
+  const taskRes = await fetch(`${PRINTFUL_API}/mockup-generator/create-task/${config.productId}`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: jsonHeaders(),
     body: JSON.stringify({
       variant_ids: [config.variantId],
       format: 'png',
-      files: [
-        {
-          placement: config.placement,
-          image_url: fileId, // Use the ID returned from upload, API usually expects URL but internal ID works in some contexts, strictly should be URL.
-          // Note: The create-task API actually expects a public URL usually. 
-          // If using the File ID from the Library, we structure it differently or need the 'preview_url' from the file upload response.
-          // For simplicity in this demo, let's assume we need the URL from the previous step.
-        }
-      ]
-    })
+      files: [{
+        placement: config.placement,
+        image_url: imageUrl,
+      }],
+    }),
   });
 
-  // Re-fetch file to get a valid temporary url if needed, but let's try a simpler approach for the demo:
-  // Using the Mockup Generator usually requires `image_url` to be accessible. 
-  // Since we just uploaded it, let's assume we can use the file ID in the context of an order, 
-  // but for Mockup Task, let's skip to a simulated return if this is too complex for a frontend-only key.
-  
-  // Actually, let's just create a draft order to get the preview? No, that costs money/resources.
-  // Let's implement a visual fallback if real generation fails, but try the standard flow.
-  
-  // Hack for demo: If we can't easily get a public URL for the image we just uploaded (private library),
-  // we might return a simulated array or try to use the base64 again? No, base64 too large for this endpoint usually.
-  
-  // Alternative: Use the uploaded file's URL if Printful returns one.
-  // The POST /files returns `result.preview_url` or `result.url`.
-  
-  return []; // Placeholder. Real implementation requires handling the async task polling which is verbose.
+  if (!taskRes.ok) {
+    const err = await taskRes.json();
+    throw new Error(err.result || 'Failed to create mockup task');
+  }
+
+  const taskData = await taskRes.json();
+  const taskKey = taskData.result.task_key;
+
+  // 2. Poll for task completion (max 60s, every 2s)
+  const maxAttempts = 30;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const pollRes = await fetch(`${PRINTFUL_API}/mockup-generator/task?task_key=${taskKey}`, {
+      method: 'GET',
+      headers: jsonHeaders(),
+    });
+
+    if (!pollRes.ok) continue;
+
+    const pollData = await pollRes.json();
+    const status = pollData.result.status;
+
+    if (status === 'completed') {
+      const mockups = pollData.result.mockups || [];
+      return mockups.map((m: any) => m.mockup_url);
+    }
+
+    if (status === 'failed') {
+      throw new Error(pollData.result.error || 'Mockup generation failed');
+    }
+  }
+
+  throw new Error('Mockup generation timed out');
 };
 
 /**
- * Simplified Mockup Generation that handles the full flow including polling
- * Accepts the file ID (or we can pass the URL if we have a public one).
- * 
- * NOTE: For this demo, since we don't have a public URL for our base64 images without uploading them to cloud storage first,
- * and Printful's `files` endpoint returns a private URL, using the Generator API might be tricky from client-side.
- * 
- * We will assume we can Create an Order (Draft) which automatically generates a mockup for the dashboard.
+ * Creates a draft order on Printful using a public image URL.
+ * The file URL is passed inline — no separate /files upload needed.
  */
 export const createDraftOrder = async (
   recipient: any,
-  fileId: number,
+  imageUrl: string,
   productType: ProductType
 ) => {
-  if (!API_KEY) throw new Error("Printful API Key missing");
-  
   const config = PRODUCT_VARIANTS[productType];
 
-  const response = await fetch(`${API_URL}/orders`, {
+  const response = await fetch(`${PRINTFUL_API}/orders`, {
     method: 'POST',
-    headers: getHeaders(),
+    headers: jsonHeaders(),
     body: JSON.stringify({
-      recipient: recipient,
-      items: [
-        {
-          variant_id: config.variantId,
-          quantity: 1,
-          files: [
-            {
-              id: fileId // We can use the File ID here!
-            }
-          ]
-        }
-      ]
-    })
+      recipient,
+      items: [{
+        variant_id: config.variantId,
+        quantity: 1,
+        files: [{
+          url: imageUrl,
+        }],
+      }],
+    }),
   });
 
   if (!response.ok) {
@@ -154,8 +143,91 @@ export const createDraftOrder = async (
   return data.result;
 };
 
-// Mock function to simulate "Real" mockups if API is missing
-export const getMockMockups = (productType: ProductType): string[] => {
-    // Return some static generic placeholders or empty to trigger UI fallback
-    return [];
-}
+/**
+ * Confirms a draft order, triggering fulfillment and charging the account.
+ */
+export const confirmOrder = async (orderId: number) => {
+  const response = await fetch(`${PRINTFUL_API}/orders/${orderId}/confirm`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.result || 'Failed to confirm order');
+  }
+
+  const data = await response.json();
+  return data.result;
+};
+
+/**
+ * Estimates shipping rates for a given recipient and product type.
+ */
+export const estimateShippingRates = async (
+  recipient: { address1: string; city: string; country_code: string; state_code: string; zip: string },
+  productType: ProductType
+): Promise<PrintfulShippingRate[]> => {
+  const config = PRODUCT_VARIANTS[productType];
+
+  const response = await fetch(`${PRINTFUL_API}/shipping/rates`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({
+      recipient,
+      items: [{
+        variant_id: config.variantId,
+        quantity: 1,
+      }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.result || 'Failed to estimate shipping');
+  }
+
+  const data = await response.json();
+  return (data.result || []).map((rate: any) => ({
+    id: rate.id,
+    name: rate.name,
+    rate: rate.rate,
+    currency: rate.currency,
+    minDeliveryDays: rate.minDeliveryDays,
+    maxDeliveryDays: rate.maxDeliveryDays,
+  }));
+};
+
+/**
+ * Estimates the cost of an order (subtotal, shipping, total) without creating it.
+ */
+export const estimateOrderCosts = async (
+  recipient: any,
+  imageUrl: string,
+  productType: ProductType
+) => {
+  const config = PRODUCT_VARIANTS[productType];
+
+  const response = await fetch(`${PRINTFUL_API}/orders/estimate-costs`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({
+      recipient,
+      items: [{
+        variant_id: config.variantId,
+        quantity: 1,
+        files: [{
+          url: imageUrl,
+        }],
+      }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.result || 'Failed to estimate costs');
+  }
+
+  const data = await response.json();
+  return data.result.costs;
+};
